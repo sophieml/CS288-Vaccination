@@ -1,0 +1,35 @@
+# April 4, 2019
+# Isabelle Hodge
+# Python Brainstorm code for the Vaccination game
+
+
+#---------
+# Main
+#---------
+
+def main():
+
+   # Set Up Base Community
+    
+    num_elderly = 50 #eval(input("Number of elders in community: "))
+    num_youth = 50 #eval(input("Number of youths in community: "))
+
+    vacc_elderly = 45 #eval(input("Number of elders who chose to vaccinate (must be less than previous number): "))
+    vacc_youth = 20 #eval(input("Number of youths who chose to vaccinate (must be less than previous number): "))
+
+    num_total = num_elderly + num_youth
+
+    # Weight of Groups affect on herd immunity
+    affect_youth = .8
+    affect_elderly = .2
+
+    # Vaccine Efficacy for Group
+    effic_youth = .8
+    effic_elderly = .5
+    
+    # Calculate Transmission Risk
+    # I can't remeber if this is how python works or not... prob not but this is some what psydo
+    PE = (vacc_youth*affect_youth*effic_youth + vacc_elderly*affect_elderly*effic_elderly)/num_total
+    
+    
+    main()
