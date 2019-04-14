@@ -1,0 +1,131 @@
+---
+title: "Vaccination Test Scripts"
+author: "Sophie Li"
+date: "4/13/2019"
+output: html_document
+---
+
+# Functions 
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+calculate_pe <- function(p_list, n_y_vac, n_e_vac) {
+  #n_y_vac <- sum(sapply(p_list, function(x) (identical(x[[2]], "young") & x[[3]] == TRUE)))
+  #n_e_vac <- sum(sapply(p_list, function(x) (identical(x[[2]], "elderly") & x[[3]] == TRUE)))
+
+  return ((1.8*n_y_vac + 0.2*n_e_vac)/length(p_list))
+}
+```
+
+# initializing lists yayyy
+```{r}
+# player <- c(ID, player_type, vac, infected, points)
+n <- 10
+points <- 4000
+y_effic <- 0.8
+e_effic <- 0.5
+vac_cost <- 20
+f_cost_y <- 100
+f_cost_e <- 400
+p_list <- list()
+
+
+set.seed(1)
+
+# set player type
+prop_y <- 0.5
+
+y_list <- sample(1:n, prop_y * n)
+e_list <- setdiff(1:n, y_list)
+
+n_y <- length(y_list)
+n_e <- length(e_list)
+
+p_type_df <- data.frame(p = 1:n) %>% 
+  mutate(p_type = ifelse(p %in% y_list, "young", "elderly"))
+
+# set vaccination
+prop_y_vac <- 0.5
+prop_e_vac <- 0.2
+
+y_vac_list <- sample(y_list, prop_y_vac * n_y)
+e_vac_list <- sample(e_list, prop_e_vac * n_e)
+
+n_y_vac <- length(y_vac_list)
+n_e_vac <- length(e_vac_list)
+
+p_vac_df <- data.frame(p = 1:n) %>% 
+  mutate(p_vac = ifelse(p %in% c(y_vac_list, e_vac_list), TRUE, FALSE))
+
+# list time oh baby
+for (p in 1:n) {
+ p_list[[p]] <- vector("list", 5)
+ names(p_list[[p]]) <- c("ID", "player_type", "vac", "infected", "points")
+ p_list[[p]]$ID <- p
+ p_list[[p]]$player_type <- p_type_df[p, 2]
+ p_list[[p]]$vac <- p_vac_df[p, 2]
+ p_list[[p]]$infected <- NULL
+ p_list[[p]]$points <- points
+}
+```
+
+
+Data generated:
+
+time | playerID | points
+
+```{r}
+pe <- calculate_pe(p_list, n_y_vac, n_e_vac)
+t_max <- 20
+graph_df <- data.frame(t = integer(0),
+                       ID = integer(0),
+                       player_type = character(0),
+                       vac = logical(0),
+                       points = integer(0))
+
+set.seed(1)
+for (t in 1:t_max) {
+  for (p in 1:n) {
+    #subtract points if vaccinated
+    p_list[[p]]$points <- ifelse(p_list[[p]]$vac, p_list[[p]]$points - vac_cost, p_list[[p]]$points)
+    
+    # determine of players are infected
+    rn <- runif(1) # generate random number
+    prob_flu <- ifelse(p_list[[p]]$player_type == "young" & p_list[[p]]$vac, (1-pe)*(1-y_effic),
+                       ifelse(p_list[[p]]$player_type == "elderly" & p_list[[p]]$vac, (1-pe)*(1-e_effic),
+                              1-pe))
+    p_list[[p]]$infected <- ifelse(rn < prob_flu, TRUE, FALSE)
+    p_list[[p]]$points <- ifelse(p_list[[p]]$player_type == "young" & p_list[[p]]$infected, p_list[[p]]$points - f_cost_y,
+                                 ifelse(p_list[[p]]$player_type == "elderly" & p_list[[p]]$infected, p_list[[p]]$points - f_cost_e,
+                                        p_list[[p]]$points))
+    graph_df <- rbind(graph_df, data.frame(t = t,
+                                           ID = p,
+                                           player_type = p_list[[p]]$player_type,
+                                           vac = p_list[[p]]$vac,
+                                           points = p_list[[p]]$points))
+  }
+}
+```
+
+# PLOTZ
+
+```{r}
+# graph by player
+ggplot(graph_df, aes(x = t, y = points)) +
+  geom_line(aes(color = as.factor(ID)))
+  
+# faceted graph
+ ggplot(graph_df, aes(x = t, y = points)) +
+  geom_line(aes(color = as.factor(ID))) +
+  facet_grid(vac ~ player_type)
+
+# total points over time
+ggplot(graph_df %>% 
+  group_by(t, player_type) %>% 
+  summarize(total = sum(points)), aes(x = t, y = total)) +
+  geom_line(aes(color = player_type))
+```
+
