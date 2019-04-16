@@ -3,59 +3,13 @@ library(tidyverse)
 
 # Define UI ----
 ui <- fluidPage(
-  titlePanel("title panel"),
+  titlePanel("Influenza/Vaccination Simulation"),
   
   sidebarLayout(
     sidebarPanel(
-      helpText("Create demographic maps with 
-               information from the 2010 US Census."),
-      numericInput("n_y",
-                   label = "Number of young players",
-                   value = 5,
-                   min = 0),
-      numericInput("n_e",
-                   label = "Number of elderly players",
-                   value = 5,
-                   min = 0),
       numericInput("t_max",
                    label = "Number of iterations",
                    value = 20,
-                   min = 0),
-      sliderInput("prop_y_vac",
-                  label = "Proportion of vaccinated young players",
-                  min = 0,
-                  max = 100,
-                  value = 50,
-                  ticks = FALSE,
-                  post = "%"),
-      sliderInput("prop_e_vac",
-                  label = "Proportion of vaccinated elderly players",
-                  min = 0,
-                  max = 100,
-                  value = 20,
-                  ticks = FALSE,
-                  post = "%"),
-      sliderInput("y_effic",
-                  label = "Vaccine efficacy for young players",
-                  min = 0,
-                  max = 100,
-                  value = 80,
-                  ticks = FALSE,
-                  post = "%"),
-      sliderInput("e_effic",
-                  label = "Vaccine efficacy for elderly players",
-                  min = 0,
-                  max = 100,
-                  value = 50,
-                  ticks = FALSE,
-                  post = "%"),
-      numericInput("f_cost_y",
-                   label = "Flu cost for young players",
-                   value = 100,
-                   min = 0),
-      numericInput("f_cost_e",
-                   label = "Flu cost for elderly players",
-                   value = 400,
                    min = 0),
       numericInput("points",
                    label = "Starting points",
@@ -64,13 +18,68 @@ ui <- fluidPage(
       numericInput("vac_cost",
                    label = "Vaccine cost",
                    value = 20,
-                   min = 0)
+                   min = 0),
+      selectInput("p_type_control",
+                  label = "Change variables for...",
+                  choices = c("young players" = "young",
+                              "elderly players" = "elderly")),
+      conditionalPanel(
+        condition = "input.p_type_control == 'young'",
+        numericInput("n_y",
+                     label = "Number of young players",
+                     value = 5,
+                     min = 0),
+        numericInput("f_cost_y",
+                     label = "Flu cost for young players",
+                     value = 100,
+                     min = 0),
+        sliderInput("prop_y_vac",
+                    label = "Proportion of vaccinated young players",
+                    min = 0,
+                    max = 100,
+                    value = 50,
+                    ticks = FALSE,
+                    post = "%"),
+        sliderInput("y_effic",
+                    label = "Vaccine efficacy for young players",
+                    min = 0,
+                    max = 100,
+                    value = 80,
+                    ticks = FALSE,
+                    post = "%")
       ),
+      conditionalPanel(
+        condition = "input.p_type_control == 'elderly'",
+        numericInput("n_e",
+                     label = "Number of elderly players",
+                     value = 5,
+                     min = 0),
+        numericInput("f_cost_e",
+                     label = "Flu cost for elderly players",
+                     value = 400,
+                     min = 0),
+        sliderInput("prop_e_vac",
+                    label = "Proportion of vaccinated elderly players",
+                    min = 0,
+                    max = 100,
+                    value = 20,
+                    ticks = FALSE,
+                    post = "%"),
+        sliderInput("e_effic",
+                    label = "Vaccine efficacy for elderly players",
+                    min = 0,
+                    max = 100,
+                    value = 50,
+                    ticks = FALSE,
+                    post = "%")
+      )
+    ),
     mainPanel(
-      plotOutput("plot1"),
-      # textOutput("y_list"),
-      tableOutput("graph_df")
-      # textOutput("p_list")
+      plotOutput("plot1",
+                 height = "400px",
+                 hover = "plot_hover"),
+      plotOutput("plot2",
+                 height = "300px")
     )
   )
 )
@@ -147,7 +156,15 @@ server <- function(input, output) {
       scale_x_continuous(limits = c(0, max(t))) +
       scale_y_continuous(limits = c(0, 4000))
   })
+  plot2 <- reactive({
+    ggplot(graph_df() %>% 
+             group_by(t, player_type) %>% 
+             summarize(total = sum(points)), aes(x = t, y = total)) +
+             geom_area(aes(fill = player_type)) +
+             scale_fill_brewer(palette = "Accent")
+  })
   output$plot1 <- renderPlot({plot1()})
+  output$plot2 <- renderPlot({plot2()})
 }
 
 # PE function
@@ -200,8 +217,8 @@ run_sim <- function(t_max, n, p_list, vac_cost, pe, y_effic, e_effic, f_cost_y, 
                                           p_list[[p]]$points))
       graph_df <- rbind(graph_df, data.frame(t = t,
                                              ID = p,
-                                             player_type = factor(p_list[[p]]$player_type, levels = c("young", "elderly")),
-                                             vac = factor(p_list[[p]]$vac, levels = c(TRUE, FALSE)),
+                                             player_type = p_list[[p]]$player_type,
+                                             vac = p_list[[p]]$vac,
                                              points = p_list[[p]]$points))
     }
   }
